@@ -1,0 +1,42 @@
+pipeline {
+    agent any
+
+    environment {
+        DOCKER_HUB_USER = 'karuncj'
+    }
+
+    stages {
+        stage('Checkout Code') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Compile and Build JARs') {
+            steps {
+                // Compiles all three services
+                dir('auth-service') { sh './mvnw clean package -DskipTests' }
+                dir('inventory-service') { sh './mvnw clean package -DskipTests' }
+                dir('order-service') { sh './mvnw clean package -DskipTests' }
+            }
+        }
+
+        stage('Build Docker Images') {
+            steps {
+                // Packages the JARs into Linux containers using the Dockerfiles you wrote
+                dir('auth-service') { sh "docker build -t ${DOCKER_HUB_USER}/auth-service:latest ." }
+                dir('inventory-service') { sh "docker build -t ${DOCKER_HUB_USER}/inventory-service:latest ." }
+                dir('order-service') { sh "docker build -t ${DOCKER_HUB_USER}/order-service:latest ." }
+            }
+        }
+
+        stage('Push to Registry') {
+            steps {
+                // Uploads the containers to the internet so Kubernetes can download them
+                sh "docker push ${DOCKER_HUB_USER}/auth-service:latest"
+                sh "docker push ${DOCKER_HUB_USER}/inventory-service:latest"
+                sh "docker push ${DOCKER_HUB_USER}/order-service:latest"
+            }
+        }
+    }
+}
